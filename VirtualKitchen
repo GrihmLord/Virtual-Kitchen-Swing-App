@@ -1,0 +1,322 @@
+import javax.swing.*;
+import java.awt.*;
+import java.awt.event.*;
+import javax.swing.event.ChangeEvent;
+import javax.swing.event.ChangeListener;
+import javax.sound.sampled.*;
+import java.io.File;
+import java.io.IOException;
+
+public class VirtualKitchen extends JFrame {
+
+    // UI Components
+    private JSlider ovenSlider;
+    private JLabel ovenLabel;
+    private JButton fridgeButton;
+    private JLabel fridgeStatus;
+    private JButton microwaveButton;
+    private JLabel microwaveStatus;
+    private JButton sinkButton;
+    private JLabel sinkStatus;
+    private JButton startTimerButton;
+    private JLabel timerLabel;
+    
+    // Timer objects for animations
+    private javax.swing.Timer microwaveTimer;
+    private javax.swing.Timer countdownTimer;
+    
+    // State variables
+    private boolean fridgeOpen = false;
+    private boolean microwaveRunning = false;
+    private boolean microwaveBlinkOn = false;
+    private boolean waterOn = false;
+    private int countdown = 0;
+    
+    public VirtualKitchen() {
+        // Frame setup
+        setTitle("Virtual Kitchen");
+        setSize(600, 400);
+        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        // BorderLayout will let us put drawing in center and controls in south
+        setLayout(new BorderLayout());
+        
+        // Create custom panel for kitchen drawing
+        KitchenPanel kitchenPanel = new KitchenPanel();
+        kitchenPanel.setBackground(new Color(240, 240, 240)); // light gray background (wall color)
+        kitchenPanel.setPreferredSize(new Dimension(600, 300));
+        
+        // Create control panel for interactive controls
+        JPanel controlPanel = new JPanel();
+        controlPanel.setLayout(new FlowLayout());
+        
+        // Initialize components
+        fridgeButton = new JButton("Open/Close Fridge");
+        fridgeStatus = new JLabel("Fridge is closed");
+        
+        ovenSlider = new JSlider(0, 250, 0); // range 0-250
+        ovenSlider.setPreferredSize(new Dimension(150, 20));
+        ovenLabel = new JLabel("Oven temperature: 0°C");
+        
+        microwaveButton = new JButton("Start Microwave");
+        microwaveStatus = new JLabel("Microwave idle");
+        
+        sinkButton = new JButton("Turn Water On/Off");
+        sinkStatus = new JLabel("Sink is off");
+        
+        startTimerButton = new JButton("Start 10s Timer");
+        timerLabel = new JLabel("Timer: 0s");
+        
+        // Add action listeners / change listeners
+        fridgeButton.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                // Toggle fridge door state
+                fridgeOpen = !fridgeOpen;
+                if (fridgeOpen) {
+                    fridgeStatus.setText("Refrigerator is open");
+                } else {
+                    fridgeStatus.setText("Refrigerator is closed");
+                }
+                // Redraw kitchen panel to show fridge door change
+                kitchenPanel.repaint();
+            }
+        });
+        
+        ovenSlider.addChangeListener(new ChangeListener() {
+            @Override
+            public void stateChanged(ChangeEvent e) {
+                int temp = ovenSlider.getValue();
+                ovenLabel.setText("Oven temperature: " + temp + "°C");
+                // Optionally, change oven appearance based on temperature
+                kitchenPanel.repaint();
+            }
+        });
+        
+        microwaveButton.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                if (!microwaveRunning) {
+                    // Start microwave animation
+                    microwaveRunning = true;
+                    microwaveStatus.setText("Microwave running");
+                    microwaveButton.setEnabled(false); // disable button while running
+                    // Set up a timer to animate the microwave (flashing effect) for a fixed duration
+                    microwaveBlinkOn = false;
+                    final int totalTicks = 10; // run for ~5 seconds (500ms * 10)
+                    microwaveTimer = new javax.swing.Timer(500, null);
+                    microwaveTimer.addActionListener(new ActionListener() {
+                        int ticks = 0;
+                        @Override
+                        public void actionPerformed(ActionEvent ev) {
+                            // Toggle microwaveBlinkOn to create flashing effect
+                            microwaveBlinkOn = !microwaveBlinkOn;
+                            kitchenPanel.repaint();
+                            ticks++;
+                            if (ticks >= totalTicks) {
+                                // Stop microwave after duration
+                                microwaveTimer.stop();
+                                microwaveRunning = false;
+                                microwaveBlinkOn = false;
+                                microwaveStatus.setText("Microwave finished");
+                                microwaveButton.setEnabled(true);
+                                // Optional: play a beep to indicate finish
+                                Toolkit.getDefaultToolkit().beep();
+                                kitchenPanel.repaint();
+                            }
+                        }
+                    });
+                    microwaveTimer.start();
+                }
+            }
+        });
+        
+        sinkButton.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                // Toggle water on/off
+                waterOn = !waterOn;
+                if (waterOn) {
+                    sinkStatus.setText("Sink water is ON");
+                    // Optional: play water sound here if available
+                } else {
+                    sinkStatus.setText("Sink is off");
+                }
+                // Redraw to show water on/off
+                kitchenPanel.repaint();
+            }
+        });
+        
+        startTimerButton.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                // Start a 10 second countdown timer
+                countdown = 10;
+                timerLabel.setText("Timer: " + countdown + "s");
+                // If an existing timer is running, stop it
+                if (countdownTimer != null && countdownTimer.isRunning()) {
+                    countdownTimer.stop();
+                }
+                // Create a new timer for countdown
+                countdownTimer = new javax.swing.Timer(1000, new ActionListener() {
+                    @Override
+                    public void actionPerformed(ActionEvent evt) {
+                        countdown--;
+                        timerLabel.setText("Timer: " + countdown + "s");
+                        if (countdown <= 0) {
+                            countdownTimer.stop();
+                            timerLabel.setText("Timer: Done!");
+                            // Optional: beep when done
+                            Toolkit.getDefaultToolkit().beep();
+                        }
+                    }
+                });
+                countdownTimer.start();
+            }
+        });
+        
+        // Add components to control panel
+        controlPanel.add(fridgeButton);
+        controlPanel.add(fridgeStatus);
+        controlPanel.add(ovenLabel);
+        controlPanel.add(ovenSlider);
+        controlPanel.add(microwaveButton);
+        controlPanel.add(microwaveStatus);
+        controlPanel.add(sinkButton);
+        controlPanel.add(sinkStatus);
+        controlPanel.add(startTimerButton);
+        controlPanel.add(timerLabel);
+        
+        // Add panels to frame
+        add(kitchenPanel, BorderLayout.CENTER);
+        add(controlPanel, BorderLayout.SOUTH);
+    }
+    
+    // Inner class for custom drawing of kitchen
+    private class KitchenPanel extends JPanel {
+        @Override
+        protected void paintComponent(Graphics g) {
+            super.paintComponent(g);
+            // Determine dimensions
+            int width = getWidth();
+            int height = getHeight();
+            // Define a floor level relative to panel height
+            int floorY = (int)(height * 0.8); // e.g., 80% down from top is floor
+            // Draw wall background
+            g.setColor(new Color(200, 200, 200)); // light gray wall
+            g.fillRect(0, 0, width, floorY);
+            // Draw floor
+            g.setColor(new Color(184, 134, 11)); // a brownish floor color
+            g.fillRect(0, floorY, width, height - floorY);
+            
+            // Appliance dimensions and positions:
+            // Fridge dimensions
+            int fridgeX = 30;
+            int fridgeWidth = 50;
+            int fridgeHeight = (int)(height * 0.5); // half of panel height
+            int fridgeY = floorY - fridgeHeight;
+            // Oven dimensions
+            int ovenWidth = 60;
+            int ovenHeight = (int)(height * 0.3);
+            int ovenX = 120;
+            int ovenY = floorY - ovenHeight;
+            // Microwave dimensions
+            int microwaveWidth = 40;
+            int microwaveHeight = 20;
+            int microwaveX = 200;
+            // Place microwave above oven or counter
+            int microwaveY = ovenY - microwaveHeight - 5;
+            if (microwaveY < 0) microwaveY = 10; // safety check
+            // Sink dimensions
+            int sinkWidth = 50;
+            int sinkHeight = 20;
+            int sinkX = 280;
+            int sinkY = floorY - sinkHeight;
+            
+            // Draw Refrigerator
+            g.setColor(Color.DARK_GRAY);
+            g.fillRect(fridgeX, fridgeY, fridgeWidth, fridgeHeight);
+            if (fridgeOpen) {
+                // Draw open door as a small rectangle to the right of fridge
+                g.setColor(Color.LIGHT_GRAY);
+                g.fillRect(fridgeX + fridgeWidth, fridgeY + 10, 10, fridgeHeight - 20);
+            } else {
+                // Draw fridge handle on closed door
+                g.setColor(Color.LIGHT_GRAY);
+                g.fillRect(fridgeX + fridgeWidth - 5, fridgeY + fridgeHeight/2 - 10, 3, 20);
+            }
+            // Label the fridge
+            g.setColor(Color.BLACK);
+            g.drawString("Fridge", fridgeX, fridgeY - 5);
+            
+            // Draw Oven
+            g.setColor(Color.GRAY);
+            g.fillRect(ovenX, ovenY, ovenWidth, ovenHeight);
+            // Oven door outline
+            g.setColor(Color.BLACK);
+            g.drawRect(ovenX, ovenY, ovenWidth, ovenHeight);
+            // Oven handle (rectangle at top of door)
+            g.fillRect(ovenX + 10, ovenY + 5, ovenWidth - 20, 5);
+            // Indicate heat inside oven if temperature > 0
+            int temp = ovenSlider.getValue();
+            if (temp > 0) {
+                float ratio = Math.min(temp / 250.0f, 1.0f);
+                Color heatColor = new Color((int)(255 * ratio), (int)(255 * (1 - ratio)), 0);
+                g.setColor(heatColor);
+                g.fillRect(ovenX + 5, ovenY + ovenHeight/2, ovenWidth - 10, ovenHeight/2 - 5);
+            }
+            // Label the oven
+            g.setColor(Color.BLACK);
+            g.drawString("Oven", ovenX, ovenY - 5);
+            
+            // Draw Microwave
+            g.setColor(Color.BLACK);
+            g.fillRect(microwaveX, microwaveY, microwaveWidth, microwaveHeight);
+            if (microwaveRunning) {
+                // Flashing interior when running
+                if (microwaveBlinkOn) {
+                    g.setColor(Color.YELLOW);
+                } else {
+                    g.setColor(Color.DARK_GRAY);
+                }
+                g.fillRect(microwaveX + 5, microwaveY + 5, microwaveWidth - 10, microwaveHeight - 10);
+            } else {
+                // Microwave idle: just draw a gray "screen"
+                g.setColor(Color.LIGHT_GRAY);
+                g.fillRect(microwaveX + 5, microwaveY + 5, microwaveWidth - 10, microwaveHeight - 10);
+            }
+            // Label the microwave
+            g.setColor(Color.BLACK);
+            g.drawString("Microwave", microwaveX, microwaveY - 5);
+            
+            // Draw Sink
+            g.setColor(Color.CYAN);
+            g.fillRect(sinkX, sinkY, sinkWidth, sinkHeight);
+            g.setColor(Color.BLACK);
+            g.drawRect(sinkX, sinkY, sinkWidth, sinkHeight);
+            // Draw faucet on sink
+            g.setColor(Color.DARK_GRAY);
+            g.fillRect(sinkX + sinkWidth/2 - 2, sinkY - 15, 4, 15);    // vertical faucet pipe
+            g.fillRect(sinkX + sinkWidth/2 - 2, sinkY - 15, 15, 4);    // horizontal faucet spout
+            if (waterOn) {
+                // Draw water stream if on
+                g.setColor(Color.BLUE);
+                int faucetX = sinkX + sinkWidth/2 + 12;
+                int faucetY = sinkY - 15 + 4;
+                g.fillRect(faucetX, faucetY, 3, sinkHeight + 10);
+            }
+            // Label the sink
+            g.setColor(Color.BLACK);
+            g.drawString("Sink", sinkX, sinkY - 5);
+        }
+    }
+    
+    public static void main(String[] args) {
+        // Launch the application on the Event Dispatch Thread
+        SwingUtilities.invokeLater(new Runnable() {
+            @Override
+            public void run() {
+                new VirtualKitchen().setVisible(true);
+            }
+        });
+    }
+}
